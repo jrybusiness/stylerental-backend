@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>衣服清單系統</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <style>
+    body { background: #f6f7fa; font-family: 'Microsoft JhengHei',Arial,sans-serif; }
+    .container { max-width: 430px; margin: 40px auto; background: #fff; border-radius: 24px; box-shadow: 0 0 20px #e0e0e0; padding: 36px 28px; }
+    h2 { color: #00b894; text-align: center; }
+    .msg { color: #00b894; text-align: center; margin-bottom: 14px; min-height: 20px; }
+    .row { display: flex; align-items: center; margin: 16px 0; }
+    .row label { width: 70px; color: #333; }
+    input, select { flex: 1; padding: 8px; border: 1px solid #b2bec3; border-radius: 5px; }
+    input[type="number"], input[type="text"] { -moz-appearance: textfield; }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="text"]::-webkit-outer-spin-button,
+    input[type="text"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    button { display: block; width: 100%; padding: 12px; font-size: 18px; background: linear-gradient(90deg, #00b894, #0984e3); color: #fff; border: none; border-radius: 8px; cursor: pointer; margin: 18px 0 0 0; }
+    button[disabled] { background: #b2bec3; cursor: not-allowed; }
+    .switch-link { text-align: center; margin-top: 22px; }
+    .switch-link a { color: #0984e3; text-decoration: underline; }
+    .search-bar { display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
+    .search-bar input, .search-bar select { flex: 1; min-width: 110px; }
+    .cloth-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(265px, 1fr)); gap: 20px; }
+    .cloth-card { background: #fff; border-radius: 10px; box-shadow: 0 1px 6px #dfe6e9; padding: 16px 12px 12px 12px; min-height: 320px; position: relative; }
+    .cloth-img-list { display: flex; gap: 5px; margin-bottom: 6px; }
+    .cloth-img-list img { width: 60px; height: 60px; object-fit: cover; border-radius: 7px; border: 1px solid #dfe6e9; }
+    .cloth-card h4 { margin: 6px 0 0 0; font-size: 18px; }
+    .cloth-card .desc { color: #636e72; font-size: 14px; margin: 5px 0; min-height: 32px; }
+    .cloth-card .meta { color: #636e72; font-size: 13px; }
+    .cloth-card .admin-btns { position: absolute; right: 12px; top: 12px; display: flex; gap: 8px; }
+    .cloth-card .admin-btns button {padding: 3px 14px; font-size: 14px; border-radius: 6px; margin: 0; background: #dfe6e9; color: #2d3436;}
+    .cloth-card .admin-btns button.del { background: #ff7675; color: #fff; }
+    .pagination { text-align: center; margin: 25px 0; }
+    .pagination button { margin: 0 2px; padding: 6px 15px; font-size: 16px; background: #dfe6e9; border: none; border-radius: 6px; color: #636e72; }
+    .pagination button.active { background: #00b894; color: #fff; }
+    @media (max-width: 680px) {
+      .container { max-width: 99vw; padding: 15px 2vw; }
+      .cloth-list { grid-template-columns: 1fr; }
+    }
+    .img-preview-list { display: flex; gap: 7px; flex-wrap: wrap; margin: 10px 0 5px 0; }
+    .img-preview-list .img-wrap { position: relative; }
+    .img-preview-list img { width: 70px; height: 70px; object-fit: cover; border-radius: 7px; border: 1px solid #dfe6e9; }
+    .img-preview-list .del-img { position: absolute; right: 0; top: 0; background: #ff7675; color: #fff; border: none; border-radius: 50%; width: 21px; height: 21px; font-size: 16px; cursor: pointer; }
+  </style>
+</head>
+<body>
+<div class="container" id="main-ui">
+  <h2 id="page-title">註冊</h2>
+  <div class="msg" id="msg"></div>
+  <!-- 註冊/登入表單 -->
+  <form id="auth-form" autocomplete="off">
+    <div class="row">
+      <label>帳號</label>
+      <input id="user" type="text" required autocomplete="username" placeholder="請輸入 Gmail">
+    </div>
+    <div class="row">
+      <label>密碼</label>
+      <input id="pass" type="password" required autocomplete="current-password">
+    </div>
+    <div class="row" id="role-row">
+      <label>角色</label>
+      <select id="role">
+        <option value="user">買家</option>
+        <option value="seller">賣家</option>
+      </select>
+    </div>
+    <button id="auth-btn" type="submit">註冊</button>
+    <div class="switch-link" id="switch-auth">
+      已有帳號？<a href="#" id="to-login">登入</a>
+    </div>
+  </form>
+  <!-- 主畫面 -->
+  <div id="main-app" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div>
+        <span id="hello"></span>
+        <button id="logout-btn" style="background:#b2bec3;color:#fff;width:auto;padding:6px 15px;font-size:15px;">登出</button>
+      </div>
+      <button id="to-add-btn" style="width:auto;padding:6px 15px;font-size:15px;display:none;">＋新增衣服</button>
+    </div>
+    <div class="search-bar">
+      <input type="text" id="search-input" placeholder="搜尋衣服名稱..." />
+      <input id="occasion-select" list="occasion-list" placeholder="全部場合">
+      <datalist id="occasion-list">
+        <option value="約會">
+        <option value="面試">
+        <option value="運動">
+        <option value="放鬆">
+        <option value="逛街">
+        <option value="cosplay">
+      </datalist>
+      <select id="gender-select">
+        <option value="">全部性別</option>
+        <option>男士</option>
+        <option>女士</option>
+        <option>中性</option>
+      </select>
+      <button id="search-btn" type="button">搜尋</button>
+      <button id="clear-search-btn" type="button" style="background:#b2bec3;color:#fff;">清除</button>
+    </div>
+    <div style="font-size:13px;color:#636e72;margin-bottom:10px;">
+      常用場合：<span>約會、面試、運動、放鬆、逛街、cosplay</span>（可自行輸入）
+    </div>
+    <div class="cloth-list" id="cloth-list"></div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+  <!-- 新增/編輯衣服表單 -->
+  <form id="cloth-form" style="display:none;">
+    <h2 id="cloth-form-title">新增衣服</h2>
+    <div class="msg" id="cloth-form-msg"></div>
+    <div class="row">
+      <label>名稱</label>
+      <input id="cloth-name" type="text" required>
+    </div>
+    <div class="row">
+      <label>價格</label>
+      <input id="cloth-price" type="text" pattern="^[0-9]+$" inputmode="numeric" required autocomplete="off">
+    </div>
+    <div class="row">
+      <label>尺寸</label>
+      <input id="cloth-size" type="text" required>
+    </div>
+    <div class="row">
+      <label>場合</label>
+      <input id="cloth-occasion" list="occasion-list" required placeholder="約會、面試...">
+      <span style="font-size:12px;color:#636e72;">常用場合：請參考上方選擇或自行輸入</span>
+    </div>
+    <div class="row">
+      <label>性別</label>
+      <select id="cloth-gender" required>
+        <option value="">請選擇</option>
+        <option>男士</option>
+        <option>女士</option>
+        <option>中性</option>
+      </select>
+    </div>
+    <div class="row">
+      <label>店鋪名</label>
+      <input id="cloth-shop" type="text" required>
+    </div>
+    <div class="row">
+      <label>電話</label>
+      <input id="cloth-phone" type="text" required>
+    </div>
+    <div class="row">
+      <label>地址</label>
+      <input id="cloth-address" type="text" required>
+    </div>
+    <div class="row">
+      <label>描述</label>
+      <input id="cloth-desc" type="text" maxlength="60">
+    </div>
+    <div class="row">
+      <label>圖片</label>
+      <input id="cloth-imgs" type="file" accept="image/*" multiple>
+    </div>
+    <div class="img-preview-list" id="img-preview-list"></div>
+    <button id="cloth-submit-btn" type="submit">送出</button>
+    <button type="button" id="cloth-cancel-btn" style="background:#b2bec3;color:#fff;">取消</button>
+  </form>
+</div>
+<script src="main.js"></script>
+</body>
+</html>
