@@ -1,4 +1,6 @@
-// 套件安裝：npm install express mongoose cors multer bcryptjs jsonwebtoken express-validator
+// 引入 dotenv 以讀取 .env 檔案（必須放在最前面）
+require('dotenv').config();
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -10,12 +12,20 @@ const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const app = express();
 
+// 僅從環境變數讀取，沒有預設值，避免部署時忘記設定
+const JWT_SECRET = process.env.JWT_SECRET;
+const MONGO_URI = process.env.MONGO_URI;
+const PORT = process.env.PORT || 3001;
+
+// 啟動時檢查環境變數是否正確設定
+if (!JWT_SECRET || !MONGO_URI) {
+  console.error('❌ 請正確設定 JWT_SECRET 與 MONGO_URI 於 .env 或平台環境變數');
+  process.exit(1);
+}
+
 app.use(express.json());
 app.use(cors());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-const JWT_SECRET = 'your_secret_key_1234';
-const MONGO_URI = 'mongodb://localhost:27017/clothshop'; // 改為你自己的連線字串
 
 if (!fs.existsSync(path.join(__dirname, 'uploads'))) {
   fs.mkdirSync(path.join(__dirname, 'uploads'));
@@ -29,23 +39,23 @@ const userSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', userSchema);
 
-// --- Clothes schema ---  // <<<<<<<<<<<<<<<<<<<<<<<<<<< 這裡加三個欄位
+// --- Clothes schema ---
 const clothesSchema = new mongoose.Schema({
   name: String,
   price: Number,
   size: String,
   images: [String],
   description: String,
-  occasion: String, // 場合
-  gender: String,   // 性別
-  shop: String,     // << 新增
-  phone: String,    // << 新增
-  address: String,  // << 新增
+  occasion: String,
+  gender: String,
+  shop: String,
+  phone: String,
+  address: String,
   seller: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 });
 const Clothes = mongoose.model('Clothes', clothesSchema);
 
-// --- Middleware ---
+// --- Middleware: 權限驗證 ---
 function auth(role) {
   return (req, res, next) => {
     const token = req.headers.authorization?.split(' ')[1];
@@ -84,7 +94,7 @@ app.post('/api/register', [
   try {
     if (await User.findOne({ username })) return res.status(400).json({ error: '帳號已存在' });
     const hashed = await bcrypt.hash(password, 10);
-    const user = await User.create({ username, password: hashed, role });
+    await User.create({ username, password: hashed, role });
     res.json({ message: '註冊成功' });
   } catch (e) {
     res.status(500).json({ error: '註冊失敗' });
@@ -154,9 +164,9 @@ app.post('/api/clothes', auth('seller'), upload.array('images', 5), [
       occasion: req.body.occasion,
       gender: req.body.gender,
       description: req.body.description,
-      shop: req.body.shop,         // << 支援店鋪名
-      phone: req.body.phone,       // << 支援電話
-      address: req.body.address,   // << 支援地址
+      shop: req.body.shop,
+      phone: req.body.phone,
+      address: req.body.address,
       seller: req.user.id
     });
     res.status(201).json(c);
@@ -231,7 +241,7 @@ app.delete('/api/clothes/:id', auth('seller'), async (req, res) => {
 
 // --- 場合與性別選項 API ---
 app.get('/api/occasions', (req, res) => {
-  res.json([MONGO_URI 
+  res.json([
     '約會', '面試', '運動', '放鬆', '逛街', 'cosplay'
   ]);
 });
@@ -241,7 +251,10 @@ app.get('/api/genders', (req, res) => {
   ]);
 });
 
-const PORT = 3001;
-mongoose.connect(MONGO_URI, { })
-  .then(() => app.listen(PORT, () => console.log(`Backend running on http://localhost:${PORT}`)))
-  .catch(err => console.error('MongoDB connect error:', err));
+// --- 連線 MongoDB 並啟動伺服器 ---
+mongoose.connect(MONGO_URI, {})
+  .then(() => app.listen(PORT, () => console.log(`✅ Backend running on http://localhost:${PORT}`)))
+  .catch(err => {
+    console.error('❌ MongoDB connect error:', err);
+    process.exit(1);
+  });
