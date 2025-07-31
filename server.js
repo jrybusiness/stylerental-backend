@@ -231,7 +231,7 @@ app.delete('/api/clothes/:id', auth('seller'), async (req, res) => {
 
 // --- 場合與性別選項 API ---
 app.get('/api/occasions', (req, res) => {
-  res.json([
+  res.json([MONGO_URI 
     '約會', '面試', '運動', '放鬆', '逛街', 'cosplay'
   ]);
 });
